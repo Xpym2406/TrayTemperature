@@ -58,8 +58,7 @@ https://github.com/Xpym2406/TrayTemperature/releases
 # Source code requirements 
 
 This software makes use of LibreHardwareMonitor.
-
-https://github.com/openhardwaremonitor/openhardwaremonitor
+https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
 
 The pre-compiled dll is already available with the release of TrayTemperature.
 
