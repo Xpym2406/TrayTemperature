@@ -1,6 +1,4 @@
-﻿// TrayTemperature Optimized Version with Localization and Autostart
-// Requires C# 7.3 or higher
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -43,7 +41,7 @@ namespace TrayTemperature
             UpdateTemperatures();
             Application.Run();
 
-            // Cleanup resources
+            // Cleanup
             DynamicIcon.Dispose();
             computer?.Close();
             Properties.Settings.Default.Save();
@@ -53,11 +51,8 @@ namespace TrayTemperature
         static void InitializeDefaultSettings()
         {
             Properties.Settings.Default.Upgrade();
-
-            // Set default values if not configured
             if (Properties.Settings.Default.CPUTempHigh == 0)
             {
-
                 Properties.Settings.Default.Celsius = true;
                 Properties.Settings.Default.Refresh = 5;
                 Properties.Settings.Default.Save();
@@ -96,12 +91,11 @@ namespace TrayTemperature
                 new MenuItem(Localization.GetString("ResetStats")) { Name = "reset" },
                 new MenuItem("-"),
                 new MenuItem(Localization.GetString("Language")) { Name = "language" },
-                new MenuItem(Localization.GetString("Autostart")) { Name = "autostart", Checked = IsAutostartEnabled() },
+                new MenuItem(Localization.GetString("Autostart")) { Name = "autostart", Checked = AutostartManager.IsEnabled() },
                 new MenuItem("-"),
                 new MenuItem(Localization.GetString("Exit")) { Name = "exit" }
             });
 
-            // Add refresh interval submenu
             var refreshMenu = contextMenu.MenuItems["refresh"];
             var refreshIntervals = new[] { 1, 2, 5, 10, 15, 30, 60 };
             foreach (var interval in refreshIntervals)
@@ -113,12 +107,10 @@ namespace TrayTemperature
                 });
             }
 
-            // Add language submenu
             var languageMenu = contextMenu.MenuItems["language"];
             languageMenu.MenuItems.Add(new MenuItem("English") { Name = "en", Checked = Localization.CurrentLanguage == "en" });
             languageMenu.MenuItems.Add(new MenuItem("Русский") { Name = "ru", Checked = Localization.CurrentLanguage == "ru" });
 
-            // Attach event handlers
             foreach (MenuItem item in contextMenu.MenuItems)
                 item.Click += OnMenuClick;
             foreach (MenuItem item in refreshMenu.MenuItems)
@@ -147,7 +139,6 @@ namespace TrayTemperature
 
             if (selectedGpu == null && gpus.Count > 0)
             {
-                // Priority: NVIDIA > AMD > Intel
                 selectedGpu = gpus.FirstOrDefault(g => g.HardwareType == HardwareType.GpuNvidia) ??
                              gpus.FirstOrDefault(g => g.HardwareType == HardwareType.GpuAmd) ??
                              gpus.FirstOrDefault(g => g.HardwareType == HardwareType.GpuIntel);
@@ -170,7 +161,8 @@ namespace TrayTemperature
             foreach (var gpu in gpus)
             {
                 var item = new MenuItem(gpu.Name) { Tag = gpu, Checked = gpu == selectedGpu };
-                item.Click += (s, e) => {
+                item.Click += (s, e) =>
+                {
                     selectedGpu = (IHardware)item.Tag;
                     gpuName = selectedGpu.Name;
                     UpdateGpuSelectionMenu();
@@ -224,7 +216,10 @@ namespace TrayTemperature
                     ToggleLogging();
                     break;
                 case "autostart":
-                    ToggleAutostart();
+                    if (AutostartManager.IsEnabled())
+                        AutostartManager.Disable();
+                    else
+                        AutostartManager.Enable();
                     RebuildContextMenu();
                     break;
             }
@@ -253,69 +248,13 @@ namespace TrayTemperature
             else
             {
                 logWriter?.Close();
-
-                // Create summary file
                 var summary = $"CPU Avg: {(float)cpuTempSum / sampleCount:F2} Min: {cpuTempMin} Max: {cpuTempMax}\n" +
-                             $"GPU Avg: {(float)gpuTempSum / sampleCount:F2} Min: {gpuTempMin} Max: {gpuTempMax}";
-
+                              $"GPU Avg: {(float)gpuTempSum / sampleCount:F2} Min: {gpuTempMin} Max: {gpuTempMax}";
                 File.WriteAllText("summary.log", summary + "\n" + File.ReadAllText("temp.log"));
                 File.Delete("temp.log");
                 isLogging = false;
             }
             RebuildContextMenu();
-        }
-
-        static void ToggleAutostart()
-        {
-            if (IsAutostartEnabled())
-                DisableAutostart();
-            else
-                EnableAutostart();
-        }
-
-        static bool IsAutostartEnabled()
-        {
-            try
-            {
-                using (var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false))
-                {
-                    return key?.GetValue("TrayTemperature") != null;
-                }
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        static void EnableAutostart()
-        {
-            try
-            {
-                using (var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
-                {
-                    key?.SetValue("TrayTemperature", Application.ExecutablePath);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{Localization.GetString("AutostartError")}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        static void DisableAutostart()
-        {
-            try
-            {
-                using (var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
-                {
-                    key?.DeleteValue("TrayTemperature", false);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{Localization.GetString("AutostartError")}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
         static void UpdateTemperatures(object sender = null, EventArgs e = null)
@@ -347,7 +286,6 @@ namespace TrayTemperature
             foreach (var hardware in computer.Hardware)
             {
                 hardware.Update();
-
                 if (hardware.HardwareType == HardwareType.Cpu)
                 {
                     var sensor = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature);
@@ -365,7 +303,6 @@ namespace TrayTemperature
 
         static void UpdateStatistics()
         {
-            // Store temperatures in Celsius for consistent calculations
             cpuTempSum += (ulong)cpuTemp;
             gpuTempSum += (ulong)gpuTemp;
             sampleCount++;
@@ -411,8 +348,6 @@ namespace TrayTemperature
 
             var cpuAvg = (float)cpuTempSum / sampleCount;
             var gpuAvg = (float)gpuTempSum / sampleCount;
-
-            // Convert averages and min/max for display
             var convertedCpuAvg = Properties.Settings.Default.Celsius ? cpuAvg : (cpuAvg * 1.8f + 32);
             var convertedGpuAvg = Properties.Settings.Default.Celsius ? gpuAvg : (gpuAvg * 1.8f + 32);
 
@@ -440,24 +375,78 @@ namespace TrayTemperature
             var cleaned = name;
             var prefix = "";
 
-            // Determine CPU prefix
             var lowerName = name.ToLower();
             if (lowerName.Contains("ryzen") || lowerName.Contains("amd"))
                 prefix = "R";
             else if (lowerName.Contains("intel") || lowerName.Contains("core"))
                 prefix = "I";
 
-            // Remove manufacturer keywords
             var wordsToRemove = new[] { "Intel", "AMD", "NVIDIA", "GeForce", "Radeon", "Core", "Ryzen", "Processor" };
             foreach (var word in wordsToRemove)
                 cleaned = cleaned.Replace(word, "");
 
-            // Clean up whitespace
             cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+", " ").Trim();
 
             return string.IsNullOrEmpty(prefix) ? cleaned : prefix + cleaned;
         }
     }
+
+    public static class AutostartManager
+    {
+        private const string RunKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+        private const string AppName = "TrayTemperature";
+
+        public static bool IsEnabled()
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, false))
+                {
+                    var value = key?.GetValue(AppName) as string;
+                    return !string.IsNullOrEmpty(value) && File.Exists(value.Trim('"'));
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static void Enable()
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true))
+                {
+                    if (key == null)
+                        throw new InvalidOperationException("Unable to access registry key.");
+
+                    string exePath = $"\"{Application.ExecutablePath}\"";
+                    key.SetValue(AppName, exePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"{Localization.GetString("AutostartError")}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        public static void Disable()
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true))
+                {
+                    key?.DeleteValue(AppName, false);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"{Localization.GetString("AutostartError")}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+
 
     public static class Localization
     {
@@ -509,17 +498,13 @@ namespace TrayTemperature
         {
             if (Translations.ContainsKey(CurrentLanguage) && Translations[CurrentLanguage].ContainsKey(key))
                 return Translations[CurrentLanguage][key];
-
-            // Fallback to English
             if (Translations.ContainsKey("en") && Translations["en"].ContainsKey(key))
                 return Translations["en"][key];
-
-            return key; // Return key if translation not found
+            return key;
         }
 
         static Localization()
         {
-            // Load saved language preference
             var savedLanguage = Properties.Settings.Default.Language;
             if (!string.IsNullOrEmpty(savedLanguage) && Translations.ContainsKey(savedLanguage))
                 CurrentLanguage = savedLanguage;
@@ -528,7 +513,6 @@ namespace TrayTemperature
 
     public static class Fixes
     {
-        // Workaround for NotifyIcon text length limitation
         public static void SetNotifyIconText(NotifyIcon notifyIcon, string text)
         {
             if (text.Length >= 128)
