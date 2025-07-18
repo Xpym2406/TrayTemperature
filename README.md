@@ -2,8 +2,6 @@
 
 A very simple CPU and GPU temperature monitor for the system tray.
 
-![TrayTemperature](<img width="247" height="286" alt="изображение" src="https://github.com/user-attachments/assets/9693896b-4629-47f9-ae92-7dd98f179177" />)
-
 Fork of https://github.com/Fergo/TrayTemperature/tree/v0.2
 
 i just wanted to upgrade it and make it work with ryzen 9xxx
@@ -13,6 +11,7 @@ Just run  `TrayTemperature.exe` and a tray icon will be added displaying the CPU
 
 The application requires elevated priviledges in order to properly acquire the sensor data.
 
+if temps not show start with admin rights
 # Customization
 
 To customize the temperature ranges and their different colors, edit the following section in the `TrayTemperature.exe.config` file:
