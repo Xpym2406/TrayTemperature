@@ -450,7 +450,7 @@ namespace TrayTemperature
 
     public static class Localization
     {
-        public static string CurrentLanguage { get; private set; } = "en";
+        public static string CurrentLanguage { get; private set; } =  Properties.Settings.Default.Language;
 
         private static readonly Dictionary<string, Dictionary<string, string>> Translations = new Dictionary<string, Dictionary<string, string>>
         {
